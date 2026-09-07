@@ -1,0 +1,27 @@
+# Environments and Secrets
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Python
+venv/
+backend/venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Node
+node_modules/
+frontend/node_modules/
+dist/
+
+# ML artifacts
+ml/models/*.joblib
+!ml/models/xgb_*.joblib
+ml/feature_engineering/output/*.csv
+dummy_train.csv
+
+# OS
+.DS_Store
+Thumbs.db

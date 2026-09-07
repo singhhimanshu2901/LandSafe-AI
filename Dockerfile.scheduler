@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy requirements (combining ml and backend DB reqs)
+COPY ml/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy necessary code
+COPY ml /app/ml
+COPY backend/app/db /app/backend/app/db
+COPY backend/app/core /app/backend/app/core
+
+ENV PYTHONPATH=/app/backend:/app
+
+WORKDIR /app/ml
+
+CMD ["python", "scheduler_job.py"]

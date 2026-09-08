@@ -1,18 +1,26 @@
 import os
 import sys
 import time
-from datetime import datetime
+import schedule
+from datetime import datetime, timedelta
+import logging
 import pandas as pd
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 import uuid
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ml.feature_engineering.pipeline import build_feature_table
-from ml.feature_engineering.config import DATABASE_URL
+from ml.feature_engineering.config import get_db_url
 from ml.inference import RiskInferencePipeline
 
-engine = create_engine(DATABASE_URL)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+engine = create_engine(get_db_url()) if os.getenv("DATABASE_URL") else None
+Session = sessionmaker(bind=engine) if engine else None
 
 interval_minutes = int(os.getenv("PREDICTION_INTERVAL_MINUTES", "60"))
 

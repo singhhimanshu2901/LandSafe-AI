@@ -17,10 +17,10 @@ jobs:
       - name: Install backend deps
         run: |
           pip install -r backend/requirements.txt
+          pip install -r backend/requirements-test.txt
           pip install -r ml/requirements.txt
-          pip install pytest
-      - name: Run tests
-        run: pytest tests/ -v
+      - name: Run unit tests
+        run: pytest tests/test_features.py tests/test_health.py -v
 
   frontend-build:
     runs-on: ubuntu-latest

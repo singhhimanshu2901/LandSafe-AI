@@ -12,7 +12,13 @@ export default function AdminIncidents() {
       setReports(data)
       setLoading(false)
     }).catch(e => {
-      setError('Unauthorized or error loading reports.')
+      if (e.response && e.response.status === 401) {
+        window.location.href = '/login?redirect=' + encodeURIComponent('/incidents')
+      } else if (e.response && e.response.status === 403) {
+        setError('Authorized personnel only. You do not have permission to access this area.')
+      } else {
+        setError('Error loading reports. Please try again later.')
+      }
       setLoading(false)
     })
   }
@@ -53,8 +59,18 @@ export default function AdminIncidents() {
     }
   }
 
-  if (loading) return <div className="container">Loading...</div>
-  if (error) return <div className="container">{error}</div>
+  if (loading) return <div className="container">Loading incidents...</div>
+  if (error) {
+    return (
+      <div className="container">
+        <h2>Access Denied</h2>
+        <div className="card" style={{padding: '30px', textAlign: 'center', marginTop: '20px'}}>
+          <h3 style={{color: '#c62828'}}>Restricted Area</h3>
+          <p>{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   const filtered = filter === 'ALL' ? reports : reports.filter(r => r.severity === filter || r.status === filter)
 

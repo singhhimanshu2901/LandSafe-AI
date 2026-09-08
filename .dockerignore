@@ -1,0 +1,11 @@
+venv/
+backend/venv/
+frontend/node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+backend/.env
+backend/.env.*
+dummy_train.csv
+ml/models/*.json

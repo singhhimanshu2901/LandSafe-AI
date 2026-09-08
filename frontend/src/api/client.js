@@ -16,8 +16,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('token')
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      const path = window.location.pathname;
+      if (path !== '/login' && path !== '/register') {
+        window.location.href = '/login?redirect=' + encodeURIComponent(path);
       }
     }
     return Promise.reject(error)
@@ -32,6 +33,8 @@ export const login = (username, password) => {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
   }).then(r => r.data)
 }
+
+export const registerUser = (payload) => api.post('/auth/register', payload).then(r => r.data)
 
 export const getRiskList = () => api.get('/risk').then(r => r.data)
 export const getLocations = () => api.get('/locations').then(r => r.data)

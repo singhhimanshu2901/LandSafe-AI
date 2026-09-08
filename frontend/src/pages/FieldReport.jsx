@@ -1,9 +1,19 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { createReport, uploadEvidence } from '../api/client.js'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 const CATEGORIES = ['LANDSLIDE', 'ROAD_BLOCKAGE', 'FLASH_FLOOD', 'SLOPE_FAILURE', 'FALLEN_TREE', 'OTHER']
 
 export default function FieldReport() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      navigate('/login?redirect=' + encodeURIComponent(location.pathname))
+    }
+  }, [navigate, location])
+
   const [form, setForm] = useState({ lat: '', lon: '', category: 'LANDSLIDE', severity: 'low', description: '' })
   const [status, setStatus] = useState(null)
   const [image, setImage] = useState(null)

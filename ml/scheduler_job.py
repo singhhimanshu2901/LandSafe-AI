@@ -9,7 +9,9 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import uuid
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+sys.path.append(os.path.join(root_dir, "backend"))
 
 from ml.feature_engineering.pipeline import build_feature_table
 from ml.feature_engineering.config import get_db_url
@@ -60,43 +62,29 @@ def run_job():
                         "version": pred["model_version"],
                         "details": details_json
                     })
-                    
-                    # Early Warning System Improvement
-                    # Consider risk level, probability, and rapid rainfall increase
-                    is_high_risk = pred["level"] in ("HIGH", "CRITICAL")
-                    rapid_rainfall = feat_dict.get("rainfall_1h", 0) > 15.0 or feat_dict.get("rainfall_intensity", 0) > 5.0
-                    
-                    if is_high_risk or rapid_rainfall:
-                        # check if previous alert was sent recently to prevent duplicates
-                        prev_alert = conn.execute(text("""
-                            SELECT sent_at FROM alerts 
-                            WHERE risk_prediction_id IN (
-                                SELECT id FROM risk_predictions WHERE location_id = :loc_id
-                            ) 
-                            ORDER BY sent_at DESC LIMIT 1
-                        """), {"loc_id": loc_id}).scalar()
-                        
-                        # Only alert if no alert in the last 2 hours
-                        if not prev_alert or (datetime.utcnow() - prev_alert).total_seconds() > 7200:
-                            alert_id = str(uuid.uuid4())
-                            reason = f"{pred['level']} risk (prob {pred['probability']:.2f})." if is_high_risk else "Rapid rainfall increase detected."
-                            template_msg = f"Alert: {reason} Location {loc_id}. Action: Evacuate/Secure area."
-                            conn.execute(text("""
-                                INSERT INTO alerts (id, risk_prediction_id, audience, channel, template, sent_at, delivery_status)
-                                VALUES (:id, :risk_id, 'public', 'sms', :tmpl, :ts, 'sent')
-                            """), {
-                                "id": alert_id,
-                                "risk_id": pred_id,
-                                "tmpl": template_msg,
-                                "ts": datetime.utcnow()
-                            })
-                            print(f"Generated alert {alert_id} for location {loc_id}")
                 except Exception as e:
                     print(f"Error predicting for location {row.get('location_id')}: {e}")
+                    
+        # Now trigger the early warning engine with a proper Session
+        if Session:
+            with Session() as db_session:
+                from app.services.early_warning import evaluate_and_generate_alert
+                from app.models.risk_prediction import RiskPrediction
+                
+                # We need to evaluate the newly inserted predictions
+                # Just fetch the latest prediction for each location generated in the last few minutes
+                recent_preds = db_session.query(RiskPrediction).filter(
+                    RiskPrediction.timestamp >= (datetime.utcnow() - timedelta(minutes=5))
+                ).all()
+                
+                for rp in recent_preds:
+                    evaluate_and_generate_alert(db_session, rp, str(rp.location_id))
                     
         print(f"[{datetime.utcnow()}] Successfully completed inference job.")
     except Exception as e:
         print(f"[{datetime.utcnow()}] Inference job failed: {e}")
+        if os.getenv("RUN_ONCE"):
+            raise
 
 import requests
 from datetime import timedelta
@@ -125,10 +113,14 @@ def run_weather_job():
                         res = requests.get(url, timeout=10)
                     except requests.exceptions.SSLError as e:
                         print(f"SSL ERROR: Cannot fetch weather due to local certificate configuration. Ensure valid CA root certificates are installed for Open-Meteo API. Exception: {e}")
+                        if os.getenv("RUN_ONCE"):
+                            raise
                         continue
                     print(f"Received weather for {loc_id}, status={res.status_code}")
                     if res.status_code != 200:
                         print(f"Failed to fetch weather for {loc_id}: {res.status_code} {res.text}")
+                        if os.getenv("RUN_ONCE"):
+                            raise RuntimeError(f"Failed to fetch weather for {loc_id}")
                         continue
                         
                     data = res.json()
@@ -164,16 +156,24 @@ def run_weather_job():
                     print(f"Inserted {inserted} weather observations for {loc_id}")
                 except Exception as e:
                     print(f"Error fetching weather for location {loc_id}: {e}")
+                    if os.getenv("RUN_ONCE"):
+                        raise
                     
         print(f"[{datetime.utcnow()}] Successfully completed weather ingestion job.")
     except Exception as e:
         print(f"[{datetime.utcnow()}] Weather ingestion job failed: {e}")
+        if os.getenv("RUN_ONCE"):
+            raise
 
 if __name__ == "__main__":
     if os.getenv("RUN_ONCE"):
-        run_weather_job()
-        run_job()
-        sys.exit(0)
+        try:
+            run_weather_job()
+            run_job()
+            sys.exit(0)
+        except Exception as e:
+            print(f"Fatal error during RUN_ONCE execution: {e}")
+            sys.exit(1)
 
     import threading
     

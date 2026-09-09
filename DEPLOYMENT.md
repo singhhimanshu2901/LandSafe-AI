@@ -57,9 +57,23 @@ npm run build
 Serve the `dist/` folder via Nginx, Vercel, Netlify, or Cloudflare Pages.
 
 ## 6. Scheduler Deployment
-The ML/Weather ingestion scheduler (`ml/scheduler_job.py`) **MUST NOT** be embedded within the FastAPI workers. If multiple API workers boot, they will create duplicate schedules and throttle the database. 
+The ML/Weather ingestion scheduler (`ml/scheduler_job.py`) **MUST NOT** be embedded within the FastAPI workers. If multiple API workers boot, they will create duplicate schedules and throttle the database.
 
-**Recommended Approach:** Deploy the scheduler as a separate background process.
+**Production Scheduled Execution Uses GitHub Actions (Free & Recommended):**
+A GitHub Actions workflow is provided (`.github/workflows/automatic-alerts.yml`) which runs the continuous pipeline cleanly in a free runner. 
+
+**Workflow:** `.github/workflows/automatic-alerts.yml`
+**Schedule:** Hourly (Note: GitHub Actions scheduling is approximate and may be delayed based on runner availability).
+**Manual Execution:** Supported via `workflow_dispatch` through the GitHub UI.
+
+To activate this, you **must** configure the following Repository Secrets in GitHub:
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+**Alternative Background Worker Approach:**
+If you prefer to run it continuously (e.g. on a paid cloud instance rather than GitHub Actions), deploy it as a dedicated Background Worker service.
 - **Option A (Systemd):** Create a dedicated `.service` file executing `python ml/scheduler_job.py`.
 - **Option B (Docker):** Run a standalone container executing only the scheduler script.
 - **Option C (Cloud Platforms):** Deploy it as a dedicated "Background Worker" service.

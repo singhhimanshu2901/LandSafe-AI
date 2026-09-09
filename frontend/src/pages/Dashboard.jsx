@@ -103,13 +103,45 @@ export default function Dashboard() {
       </div>
 
       <div className="card" style={{marginTop: '20px'}}>
-        <h3>Recent Alerts</h3>
-        {alerts.length === 0 && <p>No alerts yet.</p>}
-        <ul>
-          {alerts.map(a => (
-            <li key={a.id}>[{a.channel}] {a.template} — {new Date(a.sent_at).toLocaleString()}</li>
-          ))}
-        </ul>
+        <h3>Automatic Early Warnings</h3>
+        {alerts.length === 0 && <p>No active warnings at this time.</p>}
+        <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+          {alerts.map(a => {
+            const isResolved = a.template.includes('Resolved') || a.template.includes('returned to normal');
+            const isWarning = a.template.includes('Warning') || a.template.includes('HIGH');
+            const isEmergency = a.template.includes('Emergency') || a.template.includes('CRITICAL');
+            const isAdvisory = a.template.includes('Advisory') || a.template.includes('MEDIUM');
+            
+            let bg = '#f5f5f5';
+            let color = '#333';
+            let icon = 'ℹ️';
+            
+            if (isResolved) {
+               bg = '#e8f5e9';
+               color = '#2e7d32';
+               icon = '✅';
+            } else if (isEmergency) {
+               bg = '#ffebee';
+               color = '#c62828';
+               icon = '🚨';
+            } else if (isWarning) {
+               bg = '#fff3e0';
+               color = '#ef6c00';
+               icon = '⚠️';
+            } else if (isAdvisory) {
+               bg = '#fffde7';
+               color = '#f9a825';
+            }
+
+            return (
+              <div key={a.id} style={{padding: '12px', background: bg, color: color, borderRadius: '4px', borderLeft: `4px solid ${color}`}}>
+                <strong>{icon} {a.template.split(':')[0]}</strong>
+                <p style={{margin: '5px 0 0 0'}}>{a.template.split(':').slice(1).join(':').trim() || a.template}</p>
+                <small style={{display: 'block', marginTop: '5px', opacity: 0.8}}>{new Date(a.sent_at).toLocaleString()}</small>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

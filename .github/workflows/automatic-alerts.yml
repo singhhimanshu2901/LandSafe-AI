@@ -1,0 +1,45 @@
+name: Automatic Early Warning Scheduler
+
+on:
+  schedule:
+    # Run at the top of every hour
+    - cron: '0 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automatic-alerts
+  cancel-in-progress: false # Do not cancel in-progress runs, let them finish, queue this one
+
+jobs:
+  evaluate-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      RUN_ONCE: 1
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r ml/requirements.txt
+
+      - name: Run Weather Ingestion, Inference, and Alert Generation
+        run: |
+          python ml/scheduler_job.py
